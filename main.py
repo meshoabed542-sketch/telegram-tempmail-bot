@@ -25,7 +25,8 @@ def health():
     return "OK", 200
 
 def run_flask():
-    app_flask.run(host="0.0.0.0", port=8080)
+    port = int(os.environ.get("PORT", 8080))  # ✅ دعم Railway/Render
+    app_flask.run(host="0.0.0.0", port=port)
 
 # ================== CONFIG ==================
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -34,6 +35,7 @@ MAILBLINKER_TOKEN = os.getenv("MAILBLINKER_TOKEN")
 if not BOT_TOKEN or not MAILBLINKER_TOKEN:
     raise ValueError("⚠️ أضف BOT_TOKEN و MAILBLINKER_TOKEN في Secrets!")
 
+# ✅ روابط بدون مسافات زائدة
 CREATE_MAIL = "https://mailblinker.com/api/mail/create-mail"
 GET_MESSAGES = "https://mailblinker.com/api/mail/messages"
 GET_OTP_LINK = "https://mailblinker.com/api/mail/last-unread-otp-or-link"
@@ -92,7 +94,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.user_data.get("current_email") and all_data[user_id]:
         context.user_data["current_email"] = all_data[user_id][-1]
 
-    # وضع البحث عن إيميل
     if context.user_data.get("waiting_for_email_search"):
         email = text.strip()
         if "@" not in email or "." not in email:
@@ -102,7 +103,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await fetch_messages_by_email(update, context, email)
         return
 
-    # معالجة الخيارات
     if text == "📧 إنشاء إيميل":
         try:
             response = requests.post(CREATE_MAIL, headers=HEADERS)
@@ -113,11 +113,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_text("❌ لم يتم استلام إيميل صالح من الخادم.")
                 return
 
-            # تحديث البيانات في الذاكرة
             context.user_data["emails"].append(email)
             context.user_data["current_email"] = email
 
-            # حفظ في الملف
             all_data = load_emails()
             if user_id not in all_data:
                 all_data[user_id] = []
@@ -249,7 +247,5 @@ def run_telegram_bot():
     app.run_polling()
 
 if __name__ == "__main__":
-    # تشغيل Flask في الخلفية
     threading.Thread(target=run_flask, daemon=True).start()
-    # تشغيل البوت
     run_telegram_bot()
